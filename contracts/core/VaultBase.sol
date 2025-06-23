@@ -131,6 +131,7 @@ abstract contract VaultBase is
      */
     function _undeploy(uint256 assets) internal virtual returns (uint256);
 
+    // @audit-ok Silverwind takes the fee value depending on total asset percentage and mints it to feeReceiver
     function _harvestAndMintFees() internal {
         uint256 currentPosition = _totalAssets();
         if (currentPosition == 0) {
@@ -139,9 +140,10 @@ abstract contract VaultBase is
         int256 balanceChange = _harvest();
         if (balanceChange > 0) {
             address feeReceiver = getFeeReceiver();
-            uint256 performanceFee = getPerformanceFee();
+            uint256 performanceFee = getPerformanceFee(); // %1 by default but can be changed laterß
             if (feeReceiver != address(this) && feeReceiver != address(0) && performanceFee > 0) {
-                uint256 feeInEth = uint256(balanceChange) * performanceFee;
+                uint256 feeInEth = uint256(balanceChange) * performanceFee;//                   1e9
+                // @todo understand the decimal values of totalSupply() and _totalAssets()
                 uint256 sharesToMint = feeInEth.mulDivUp(totalSupply(), currentPosition * PERCENTAGE_PRECISION);
                 _mint(feeReceiver, sharesToMint);
             }
@@ -234,6 +236,9 @@ abstract contract VaultBase is
      * @param receiver The address of the receiver.
      * @return shares The number of shares minted for the deposit.
      */
+     // @note There is no minimum limit for assets here. 
+     // @audit-ok Silverwind It sends the deposit to AAVE and mints the tokens
+     // which assigned in deployment of this contract to the receiver
     function _depositInternal(uint256 assets, address receiver) private returns (uint256 shares) {
         if (receiver == address(0)) revert InvalidReceiver();
         // Fetch price options from settings
@@ -252,7 +257,9 @@ abstract contract VaultBase is
             uint256 newBalance = assets + depositInAssets;
             if (newBalance > maxDepositLocal) revert MaxDepositReached();
         }
-
+        // @Silverwind I think this calls the Vault.sol's _deploy.
+        // And then it calls the StrategySupplyAAVEv3.sol's _deploy
+        // So I think this sends assets to the AAVE and gets aTokens (usd -> ausd)
         uint256 deployedAmount = _deploy(assets);
 
         // Calculate shares to mint
@@ -267,6 +274,7 @@ abstract contract VaultBase is
         _mint(receiver, shares);
 
         // Emit deposit event
+        // @note there is no Deposit event in the system which takes these parameters
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
@@ -275,6 +283,7 @@ abstract contract VaultBase is
      * @param shareHolder The address of the shareholder.
      * @return maxAssets The maximum amount of assets that can be withdrawn.
      */
+     // @audit-ok Silverwind it returns the asset value of tokens which holder has.
     function maxWithdraw(address shareHolder) external view override returns (uint256 maxAssets) {
         maxAssets = this.convertToAssets(balanceOf(shareHolder));
     }
@@ -284,6 +293,7 @@ abstract contract VaultBase is
      * @param assets The amount of assets to preview.
      * @return shares The number of shares corresponding to the assets.
      */
+     // @audit-ok Silverwind
     function previewWithdraw(uint256 assets) external view override returns (uint256 shares) {
         shares = this.convertToShares(assets);
     }
@@ -293,6 +303,7 @@ abstract contract VaultBase is
      * @param assets The amount of assets to withdraw.
      * @return shares The number of shares burned for the withdrawal.
      */
+     // @audit-ok Silverwind
     function withdrawNative(
         uint256 assets
     ) external override nonReentrant whenNotPaused onlyWhiteListed returns (uint256 shares) {
@@ -306,6 +317,7 @@ abstract contract VaultBase is
      * @param shares The number of shares to redeem.
      * @return assets The amount of assets withdrawn.
      */
+     // @audit-ok Silverwind
     function redeemNative(
         uint256 shares
     ) external override nonReentrant whenNotPaused onlyWhiteListed returns (uint256 assets) {
@@ -320,6 +332,7 @@ abstract contract VaultBase is
      * @param holder The owner of the assets to withdraw.
      * @return shares The number of shares burned for the withdrawal.
      */
+     // @audit-ok Silverwind
     function withdraw(
         uint256 assets,
         address receiver,
@@ -334,6 +347,7 @@ abstract contract VaultBase is
      * @param shareHolder The address of the shareholder.
      * @return maxShares The maximum number of shares that can be redeemed.
      */
+     // @audit-ok Silverwind
     function maxRedeem(address shareHolder) external view override returns (uint256 maxShares) {
         maxShares = balanceOf(shareHolder);
     }
@@ -343,6 +357,7 @@ abstract contract VaultBase is
      * @param shares The number of shares to preview.
      * @return assets The amount of assets corresponding to the shares.
      */
+     // @audit-ok Silverwind
     function previewRedeem(uint256 shares) external view override returns (uint256 assets) {
         assets = this.convertToAssets(shares);
     }
@@ -354,6 +369,7 @@ abstract contract VaultBase is
      * @param holder The owner of the shares to redeem.
      * @return retAmount The amount of assets received after redemption.
      */
+     // @audit-ok Silverwind
     function redeem(
         uint256 shares,
         address receiver,
@@ -370,6 +386,7 @@ abstract contract VaultBase is
      * @param shouldRedeemETH Whether to redeem as ETH.
      * @return retAmount The amount of assets received after redemption.
      */
+     // @audit-ok Silverwind burns the tokens and sends assets back to the user after taking the fee
     function _redeemInternal(
         uint256 shares,
         address receiver,
@@ -388,8 +405,8 @@ abstract contract VaultBase is
 
         // Calculate the amount to withdraw based on shares
         uint256 withdrawAmount = (shares * totalAssets()) / totalSupply();
-        if (withdrawAmount == 0) revert NoAssetsToWithdraw();
-
+        if (withdrawAmount == 0) revert NoAssetsToWithdraw();   
+        // @Silverwind I think this is calls Vault.sol's then it calls -> MultiStrategyVault.sol's _undeploy
         uint256 amount = _undeploy(withdrawAmount);
         uint256 fee = 0;
         uint256 remainingShares = totalSupply() - shares;
@@ -430,6 +447,7 @@ abstract contract VaultBase is
      * @dev Retrieves the total assets controlled/belonging to the vault.
      * @return amount The total assets under management by the strategy.
      */
+     // @audit-ok Silverwind
     function totalAssets() public view override returns (uint256 amount) {
         amount = _totalAssets();
     }
@@ -439,6 +457,7 @@ abstract contract VaultBase is
      * @param assets The amount of assets to be converted to shares.
      * @return shares The calculated number of shares.
      */
+     // @audit-ok Silverwind
     function convertToShares(uint256 assets) external view override returns (uint256 shares) {
         Rebase memory total = Rebase(totalAssets(), totalSupply());
         shares = total.toBase(assets, false);
@@ -449,6 +468,7 @@ abstract contract VaultBase is
      * @param shares The number of shares to be converted to assets.
      * @return assets The calculated amount of assets.
      */
+     // @audit-ok Silverwind
     function convertToAssets(uint256 shares) external view override returns (uint256 assets) {
         Rebase memory total = Rebase(totalAssets(), totalSupply());
         assets = total.toElastic(shares, false);
@@ -458,6 +478,7 @@ abstract contract VaultBase is
      * @dev Returns the address of the asset being managed by the vault.
      * @return The address of the asset.
      */
+     // @audit-ok Silverwind
     function asset() external view override returns (address) {
         return _asset();
     }
@@ -466,6 +487,15 @@ abstract contract VaultBase is
      * @dev Retrieves the token-to-Asset exchange rate.
      * @return rate The calculated token-to-ETH exchange rate.
      */
+     // audit this does not return tokenPerAsset but assetPerToken
+     // -> Wrong alarm
+    // total supply is our x tokens -> for excample 1000
+    // totalAsset is the real value -> for example 100$
+    // 1000/100 = 10 -> this means 1 usd leads to 10 tokens.
+    // So its asset per token, for every 1 asset, there are 10 tokens.
+    // @audit-ok Silverwind. It returns the token worth of each asset.
+    // It has rounding. However could not found any problem. It just changes
+    // newBalance > maxDepositLocal to pass easier by incrasing newBalance
     function tokenPerAsset() public view returns (uint256) {
         uint256 totalAssetsValue = totalAssets();
 
@@ -481,6 +511,7 @@ abstract contract VaultBase is
      * Only the Owner is able to pause the vault.
      * When the contract is paused, deposit, withdraw, and rebalance cannot be called without reverting.
      */
+     // @audit-ok Silverwind
     function pause() external onlyRole(PAUSER_ROLE) {
         _pause();
     }
@@ -489,6 +520,7 @@ abstract contract VaultBase is
      * @dev Unpauses the contract.
      * Only the Owner is able to unpause the vault.
      */
+     // @audit-ok Silverwind
     function unpause() external onlyRole(PAUSER_ROLE) {
         _unpause();
     }

@@ -170,6 +170,7 @@ abstract contract MultiStrategy is Initializable, AccessControlUpgradeable {
         totalUndeployed = 0;
         for (uint256 i = 0; i < strategiesLength; i++) {
             uint256 fractAmount = (amount * currentAssets[i]) / totalAssets;
+            // @Silverwind I think this undeploy is from StrategyPark.sol (out of scope)
             totalUndeployed += IStrategy(_strategies[i]).undeploy(fractAmount);
         }
     }

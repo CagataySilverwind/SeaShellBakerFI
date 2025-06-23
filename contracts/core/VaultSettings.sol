@@ -141,6 +141,7 @@ contract VaultSettings is Initializable, AccessControlUpgradeable, IVaultSetting
      * - The caller must be the owner of the contract.
      * - The new withdrawal fee percentage must be a valid percentage value.
      */
+
     function setWithdrawalFee(uint256 fee) public onlyRole(ADMIN_ROLE) {
         if (fee >= PERCENTAGE_PRECISION) revert InvalidPercentage();
         _withdrawalFee = fee;
@@ -170,6 +171,7 @@ contract VaultSettings is Initializable, AccessControlUpgradeable, IVaultSetting
      * - The caller must be the owner of the contract.
      * - The new performance fee percentage must be a valid percentage value.
      */
+     // @audit-ok Silverwind this sets the performance fee and be sures that its not over %100
     function setPerformanceFee(uint256 fee) external onlyRole(ADMIN_ROLE) {
         if (fee >= PERCENTAGE_PRECISION) revert InvalidPercentage();
         _performanceFee = fee;

@@ -8,3 +8,5 @@ cache/*
 .storage-layouts
 mappings.json
 package.json
+scope.md
+settings.json
