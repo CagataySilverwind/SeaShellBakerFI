@@ -150,8 +150,8 @@ abstract contract StrategyLeverage is
         _initUseFlashLender(flashLender);
 
         // Find the Tokens on Registry
-        _collateralToken = collateralToken;
-        _debtToken = debtToken;
+        _collateralToken = collateralToken; // ETH
+        _debtToken = debtToken; // USD
 
         // Set the Oracle
         _oracle = IOracle(oracle);
@@ -187,6 +187,8 @@ abstract contract StrategyLeverage is
      * Requirements:
      * - The AAVEv3 strategy must be properly configured and initialized.
      */
+     // @audit-ok It returns the LTV, which is the USD value for the given ETH amount.
+     // EXP: You put 1000$ worth of ETH. If you take 500$ worth of token, then the LTV is %50
     function getPosition(
         IOracle.PriceOptions memory priceOptions
     ) external view returns (uint256 totalCollateralInAsset, uint256 totalDebtInAsset, uint256 loanToValue) {
@@ -194,6 +196,9 @@ abstract contract StrategyLeverage is
         if (totalCollateralInAsset == 0) {
             loanToValue = 0;
         } else {
+            // @audit @note here when the totalDebtInAsset increases, it also increase the LTV
+            // High LTV can lead to more dept the user be able to take. It seems not logical.
+            // If this assumption is right, then it means: Taking more dept leads to be able to take more dept. Which seems problematic. 
             loanToValue = (totalDebtInAsset * PERCENTAGE_PRECISION) / totalCollateralInAsset;
         }
     }
@@ -483,12 +488,14 @@ abstract contract StrategyLeverage is
      * @return totalCollateralInAsset The total collateral position in ETH.
      * @return totalDebtInAsset The total debt position in ETH.
      */
+     // @audit-ok Silverwind it returns the dept and collateral balance 
     function _getPosition(
         IOracle.PriceOptions memory priceOptions
     ) internal view returns (uint256 totalCollateralInAsset, uint256 totalDebtInAsset) {
         totalCollateralInAsset = 0;
         totalDebtInAsset = 0;
-
+        // @audit @note there is no stale check for the data which comes from the AAVE. 
+        // -> The priceOptions struct has maxAge value in it. So maybe it uses that. But still not fully sure.
         (uint256 collateralBalance, uint256 debtBalance) = getBalances();
         // Convert Collateral Balance to $USD safely
         if (collateralBalance != 0) {
@@ -701,12 +708,17 @@ abstract contract StrategyLeverage is
      *
      * @param amountIn The amount in the underlying collateral.
      * @return amountOut The equivalent amount in Debt Token.
-     */
+     */ 
+     // @audit-ok Silverwind it returns the collateral value (usd) corresponding to the input amount (ETH).
+     // tdo check does roundUp favors the protocol or the user
+     // -> its not directly benefits the protocol or user. 
+     // -> But rounding up reduces the LTV so user gets less with same collateral amount
     function _toDebt(
         IOracle.PriceOptions memory priceOptions,
         uint256 amountIn,
         bool roundUp
     ) internal view returns (uint256 amountOut) {
+        //             x ETH                              *   100$             / precision    
         amountOut = amountIn.mulDiv(_oracle.getSafeLatestPrice(priceOptions).price, _oracle.getPrecision(), roundUp);
     }
 
