@@ -188,7 +188,7 @@ abstract contract StrategyLeverage is
      * - The AAVEv3 strategy must be properly configured and initialized.
      */
      // @audit-ok It returns the LTV, which is the USD value for the given ETH amount.
-     // EXP: You put 1000$ worth of ETH. If you take 500$ worth of token, then the LTV is %50
+     // EXP: You put 1000$ worth of ETH. If you take 500$ worth of token, then the LTV is %50 
     function getPosition(
         IOracle.PriceOptions memory priceOptions
     ) external view returns (uint256 totalCollateralInAsset, uint256 totalDebtInAsset, uint256 loanToValue) {
@@ -215,6 +215,7 @@ abstract contract StrategyLeverage is
      * Requirements:
      * - The AAVEv3 strategy must be properly configured and initialized.
      */
+     // * I am here.
     function totalAssets() external view returns (uint256 totalOwnedAssetsInDebt) {
         IOracle.PriceOptions memory priceOptions = IOracle.PriceOptions({maxAge: 0, maxConf: 0});
         (uint256 totalCollateral, uint256 totalDebt) = getBalances();
