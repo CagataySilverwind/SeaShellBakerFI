@@ -215,10 +215,12 @@ abstract contract StrategyLeverage is
      * Requirements:
      * - The AAVEv3 strategy must be properly configured and initialized.
      */
-     // * I am here.
+     // @audit-ok Silverwind It returns the differences between the dept and the worth of collateral they put.
+     // If the worth of the collateral is higher it returns the difference, if not then it returns 0.
+     // so if this returns 0 it also means there is bad dept here.
     function totalAssets() external view returns (uint256 totalOwnedAssetsInDebt) {
         IOracle.PriceOptions memory priceOptions = IOracle.PriceOptions({maxAge: 0, maxConf: 0});
-        (uint256 totalCollateral, uint256 totalDebt) = getBalances();
+        (uint256 totalCollateral, uint256 totalDebt) = getBalances(); // It uses the getBalances from StrategyLeverageAAVEv3.sol, not from the Morpho. Its another defi lending platform.
         uint256 totalCollateralInDebt = _toDebt(priceOptions, totalCollateral, false);
         totalOwnedAssetsInDebt = totalCollateralInDebt > totalDebt ? (totalCollateralInDebt - totalDebt) : 0;
     }
@@ -237,6 +239,7 @@ abstract contract StrategyLeverage is
      * - The received Ether amount must not be zero.
      * - The AAVEv3 strategy must be properly configured and initialized.
      */
+     // * I am here.
     function deploy(uint256 amount) external onlyOwner nonReentrant returns (uint256 deployedAmount) {
         // Ensure a non-zero deployment amount
         if (amount == 0) revert InvalidDeployAmount();
@@ -710,7 +713,7 @@ abstract contract StrategyLeverage is
      * @param amountIn The amount in the underlying collateral.
      * @return amountOut The equivalent amount in Debt Token.
      */ 
-     // @audit-ok Silverwind it returns the collateral value (usd) corresponding to the input amount (ETH).
+     // @audit-ok Silverwind it returns the collateral value (ETH) corresponding to usd price.
      // tdo check does roundUp favors the protocol or the user
      // -> its not directly benefits the protocol or user. 
      // -> But rounding up reduces the LTV so user gets less with same collateral amount
