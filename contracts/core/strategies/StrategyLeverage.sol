@@ -239,7 +239,7 @@ abstract contract StrategyLeverage is
      * - The received Ether amount must not be zero.
      * - The AAVEv3 strategy must be properly configured and initialized.
      */
-     // * I am here.
+     // @audit-ok Silverwind takes amount of deptToken and calculates leverage. After that gives flash loan to THIS address.
     function deploy(uint256 amount) external onlyOwner nonReentrant returns (uint256 deployedAmount) {
         // Ensure a non-zero deployment amount
         if (amount == 0) revert InvalidDeployAmount();
@@ -248,22 +248,29 @@ abstract contract StrategyLeverage is
         IERC20Upgradeable(_debtToken).safeTransferFrom(msg.sender, address(this), amount);
 
         // 2. Calculate leverage and determine the loan amount needed
+        // @audit @add this line gets the result same as amount.
+        // loanAmount become 0.
+        // and whole function starts to makes calculations with using 0
         uint256 leverage = _calculateLeverageRatio(amount, getLoanToValue(), getNrLoops());
         uint256 loanAmount = leverage - amount;
 
         // 3. Calculate the flash loan fee for the required loan amount
+        // Silverwind this one is out of scope but when the loanAmount is 0 it returns 0
         uint256 fee = flashLender().flashFee(_debtToken, loanAmount);
 
         // 4. Approve the flash lender to spend the loan amount plus fee
+        // Silverwind Approve does not contains any amount 0 checks
         if (!IERC20Upgradeable(_debtToken).approve(flashLenderA(), loanAmount + fee)) {
             revert FailedToApproveAllowance();
         }
 
         // 5. Prepare and authenticate flash loan data
         bytes memory data = abi.encode(amount, msg.sender, FlashLoanAction.SUPPLY_BORROW);
+        // @audit @note _flashLoanArgsHash just assigns to 0 after decleared without used anywhere 
         _flashLoanArgsHash = keccak256(abi.encodePacked(address(this), _debtToken, loanAmount, data));
 
         // 6. Execute the flash loan
+        // Silverwind this takes flash loan from AAVE
         if (!flashLender().flashLoan(IERC3156FlashBorrowerUpgradeable(this), _debtToken, loanAmount, data)) {
             _flashLoanArgsHash = 0;
             revert FailedToRunFlashLoan();
@@ -271,6 +278,9 @@ abstract contract StrategyLeverage is
 
         // 7. Reset flash loan argument hash and update deployed assets
         _flashLoanArgsHash = 0;
+        // @todo check is this line correct with assigning pendingAmount to deployed and make it 0 afterwards.
+        // @audit here there is no connection between deployedAmount and any other thing in the function.
+        // @todo understand what this means?
         deployedAmount = _pendingAmount;
         _deployedAssets += deployedAmount;
 
@@ -301,6 +311,7 @@ abstract contract StrategyLeverage is
      * - The initiator must be the contract itself to ensure trust.
      * - The contract must be properly configured and initialized.
      */
+     // * I am here
     function onFlashLoan(
         address initiator,
         address token,

@@ -25,6 +25,9 @@ contract UseLeverage {
         if (loanToValue == 0 || loanToValue > PERCENTAGE_PRECISION) revert InvalidLoanToValue();
         uint256 leverage = baseValue;
         uint256 prev = baseValue;
+        // ! @audit Here there is no check for prev * loanToValue being higher than PERCENTAGE_PRECISION
+        // ! If its smaller, then the inc becomes 0 and the prev will become 0.
+        // ! This will lead to returning the leverage value as baseValue (amount) without changing.
         for (uint8 i = 1; i <= nrLoops; ) {
             uint256 inc = (prev * loanToValue) / PERCENTAGE_PRECISION;
             leverage += inc;
