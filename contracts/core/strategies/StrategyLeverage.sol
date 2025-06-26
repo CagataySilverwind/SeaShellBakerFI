@@ -311,7 +311,6 @@ abstract contract StrategyLeverage is
      * - The initiator must be the contract itself to ensure trust.
      * - The contract must be properly configured and initialized.
      */
-     // * I am here
     function onFlashLoan(
         address initiator,
         address token,
@@ -330,6 +329,9 @@ abstract contract StrategyLeverage is
 
         // Authenticate the provided arguments against the stored hash
         bytes32 expectedHash = keccak256(abi.encodePacked(initiator, token, amount, callData));
+        // @audit Silverwind in this contract this value is never set something other than 0.
+        // Even it sets something, then in the same function it always set to 0 again.
+        // So here, if the expectedHash is not 0 then it always will revert.
         if (_flashLoanArgsHash != expectedHash) revert FailedToAuthenticateArgs();
 
         // Decode the flash loan data
@@ -659,6 +661,7 @@ abstract contract StrategyLeverage is
      * @param amount The amount to convert from debtToken.
      * @return uint256 The converted amount in the underlying collateral.
      */
+     // @audit-ok It SWAPS the "amount" of dept token($) to collateral token(ETH) with using generic protocols via their contracts
     function _convertToCollateral(uint256 amount) internal virtual returns (uint256) {
         uint256 amountOutMinimum = 0;
 
@@ -668,6 +671,8 @@ abstract contract StrategyLeverage is
                 amount,
                 false
             );
+            // Silverwind slippage value cannot be more than percentage precision
+            // Exp: amountOutMinimum = 3e11
             amountOutMinimum = (wsthETHAmount * (PERCENTAGE_PRECISION - getMaxSlippage())) / PERCENTAGE_PRECISION;
         }
         // 1. Swap Debt Token -> Collateral Token
@@ -745,6 +750,7 @@ abstract contract StrategyLeverage is
      * @param amountIn The amount in Debt Token to be converted.
      * @return amountOut The equivalent amount in the underlying collateral.
      */
+     // @audit-ok Silverwind it returns the ETH amount of the amountIn($)
     function _toCollateral(
         IOracle.PriceOptions memory priceOptions,
         uint256 amountIn,
@@ -768,6 +774,8 @@ abstract contract StrategyLeverage is
      * - The AAVEv3 strategy must be properly configured and initialized.
      */
     function _supplyBorrow(uint256 amount, uint256 loanAmount, uint256 fee) internal {
+        // Silverwind the swap happens here.
+        // This value is ETH
         uint256 collateralIn = _convertToCollateral(amount + loanAmount);
         // Deposit on AAVE Collateral and Borrow Debt Token
         _supplyAndBorrow(collateralIn, loanAmount + fee);

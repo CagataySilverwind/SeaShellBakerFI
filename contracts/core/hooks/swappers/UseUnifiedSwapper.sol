@@ -51,9 +51,9 @@ abstract contract UseUnifiedSwapper is ISwapHandler, GovernableOwnable {
         uint24 uniV3Tier; // 3 bytes UniswapV3 fee tier
         uint24 tickSpacing; // 3 bytes tick spacing
     }
-
+    // Silverwind the bytes32 in this mapping contains arrays as bytes32
     mapping(bytes32 => RouteInfo) private _routes;
-
+    // @audit-ok Silverwind this function returns a abi.encode which nicludes both addresses in single array.
     function _key(address tokenA, address tokenB) internal pure returns (bytes32) {
         return keccak256(abi.encode(tokenA < tokenB ? [tokenA, tokenB] : [tokenB, tokenA]));
     }
@@ -112,6 +112,8 @@ abstract contract UseUnifiedSwapper is ISwapHandler, GovernableOwnable {
     vider to execute the swap. The function handles swaps for Uniswap V2,
     * Uniswap V3, and Curve, encoding the necessary parameters for the Curve swap.
    */
+   // @todo the function works both for Uniswap V2, V3 and Curve. Does they have any difference when it comes to implementation?
+   // @Silverwind did not enter the swap functions. Yet in sum, the function calls related swap functions from different protocols.
     function swap(SwapParams memory params) internal virtual override returns (uint256 amountIn, uint256 amountOut) {
         bytes32 key = _key(params.underlyingIn, params.underlyingOut);
         // Retrieve the route information using the storage getter

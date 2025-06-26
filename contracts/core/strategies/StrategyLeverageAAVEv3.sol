@@ -82,6 +82,7 @@ contract StrategyLeverageAAVEv3 is Initializable, StrategyLeverage, UseAAVEv3 {
      *
      * @param amountIn the amount to deposit
      */
+     // @audit-ok Silverwind calls the out of scope aave supply function.
     function _supply(uint256 amountIn) internal virtual override {
         if (!ERC20(_collateralToken).approve(aaveV3A(), amountIn)) revert FailedToApproveAllowanceForAAVE();
         aaveV3().supply(_collateralToken, amountIn, address(this), 0);
@@ -92,6 +93,8 @@ contract StrategyLeverageAAVEv3 is Initializable, StrategyLeverage, UseAAVEv3 {
      * @param collateral The amount of the asset to supply.
      * @param debt The address of the asset to borrow.
      */
+     // Silverwind collateral = ETH
+     // @audit-ok gives eth to the aave and takes deptToken in return
     function _supplyAndBorrow(uint256 collateral, uint256 debt) internal virtual override {
         _supply(collateral);
         aaveV3().setUserUseReserveAsCollateral(_collateralToken, true);
